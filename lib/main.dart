@@ -40,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double offset = 0;
   Future<GlobalStat> futureGlobalStat;
   Future<CountryStat> futureCountryStat;
-
+  static const IconData refresh = IconData(0xe5d5, fontFamily: 'MaterialIcons');
   @override
   void initState() {
     // TODO: implement initState
@@ -105,8 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         value: snapshot.data.countries.elementAt(i).country,
                       ));
-                    }
-                    ;
+                    };
                     return new SearchableDropdown.single(
                       items: items,
                       value: selectedValue,
@@ -122,6 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   } else if (snapshot.hasError) {
                     return Text("${snapshot.error}");
                   }
+                  return LinearProgressIndicator();
                 },
               ),
             ),
@@ -130,55 +130,41 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Column(
-                        children: <Widget>[
-                          Text(
-                            "Case Update\n",
-                            style: kTitleTextstyle,
-                            textAlign: TextAlign.left
-                          ),
-                          FutureBuilder<CountryStat>(
-                            future: futureCountryStat,
-                            builder: (context, snapshot) {
-                              if (snapshot.hasData) {
-                                var date =
-                                    snapshot.data.countries.elementAt(0).date;
-                                var dateSplit = date.split("T");
-                                return Text(
-                                  'Latest update: ' + dateSplit[0],
-                                  style: TextStyle(
-                                    color: kTextLightColor,
-                                  ),
-                                );
-                              } else if (snapshot.hasError) {
-                                return Text("${snapshot.error}");
-                              }
-                              return CircularProgressIndicator();
-                            },
-                          )
-                        ],
-                      ),
-                      Spacer(),
-                      FlatButton(
-                        onPressed: () {
-                          setState(() {
-                            futureGlobalStat = fetchStats();
-                            log('reload');
-                          });
-                        },
-                        child: Text(
-                          "Reload",
-                          style: TextStyle(
-                            color: kPrimaryColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      )
-                    ],
+                  ListTile(
+                    title: Text(
+                      "Case Update",
+                      style: kTitleTextstyle,
+                    ),
+                    subtitle: FutureBuilder<CountryStat>(
+                      future: futureCountryStat,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          var date = snapshot.data.countries.elementAt(0).date;
+                          var dateSplit = date.split("T");
+                          return Text(
+                            'Latest update: ' + dateSplit[0],
+                            style: TextStyle(
+                              color: kTextLightColor,
+                            ),
+                          );
+                        } else if (snapshot.hasError) {
+                          return Text("${snapshot.error}");
+                        }
+                        return LinearProgressIndicator();
+                      },
+                    ),
+                    trailing: IconButton(
+                      icon: Icon(Icons.refresh, color: kPrimaryColor),
+                      onPressed: () {
+                        setState(() {
+                          futureGlobalStat = fetchStats();
+                          log('reload');
+                        });
+                      },
+                    ),
+                    dense: true,
                   ),
-                  SizedBox(height: 20),
+                  //SizedBox(height: 20),
                   Container(
                     padding: EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -223,37 +209,34 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                   ),
-                  SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Text(
-                        "Spread of Virus",
-                        style: kTitleTextstyle,
+                  //SizedBox(height: 20),
+                  ListTile(
+                    title: Text(
+                      "Spread of Virus",
+                      style: kTitleTextstyle,
+                    ),
+                    trailing: Text(
+                      "See details",
+                      style: TextStyle(
+                        color: kPrimaryColor,
+                        fontWeight: FontWeight.w600,
                       ),
-                      Text(
-                        "See details",
-                        style: TextStyle(
-                          color: kPrimaryColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                    ),
+                    dense: true,
                   ),
-                  FutureBuilder<CountryStat>(
-                    future: fetchCountries(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData) {
-                        //CountryStat data = snapshot.data;
-                        //return new Text(snapshot.data.countries.elementAt(1).country);
-                        Expanded(
-                          child: _countryListView(snapshot.data.countries),
-                        );
-                      } else if (snapshot.hasError) {
-                        return Text("${snapshot.error}");
-                      }
-                      return CircularProgressIndicator();
-                    },
+                  SizedBox(
+                    height: 600,
+                    child: FutureBuilder<CountryStat>(
+                      future: fetchCountries(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          return _countryListView(snapshot.data.countries);
+                        } else if (snapshot.hasError) {
+                          return LinearProgressIndicator();
+                        }
+                        return LinearProgressIndicator();
+                      },
+                    ),
                   )
                 ],
               ),
@@ -266,6 +249,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   ListView _countryListView(data) {
     return ListView.builder(
+        //shrinkWrap: true,
         itemCount: data.length,
         itemBuilder: (context, index) {
           return _tile(data.elementAt(index).country,
@@ -273,12 +257,12 @@ class _HomeScreenState extends State<HomeScreen> {
         });
   }
 
-  ListTile _tile(String country, String totalConfirmed) => ListTile(
+  ListTile _tile(String country, int totalConfirmed) => ListTile(
         title: Text(country,
             style: TextStyle(
               fontWeight: FontWeight.w500,
               fontSize: 20,
             )),
-        subtitle: Text(totalConfirmed),
+        subtitle: Text(totalConfirmed.toString()),
       );
 }
