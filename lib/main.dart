@@ -1,9 +1,14 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_ui_challenge_1/api/country_stat_api.dart';
+import 'package:flutter_ui_challenge_1/model/country_stat.dart';
 import 'package:flutter_ui_challenge_1/value.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_ui_challenge_1/widgets/counter.dart';
 import 'package:flutter_ui_challenge_1/model/global_stat.dart';
 import 'package:flutter_ui_challenge_1/api/global_stat_api.dart';
+import 'package:searchable_dropdown/searchable_dropdown.dart';
 
 void main() => runApp(MyApp());
 
@@ -34,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final controller = ScrollController();
   double offset = 0;
   Future<GlobalStat> futureGlobalStat;
+  Future<CountryStat> futureCountryStat;
 
   @override
   void initState() {
@@ -41,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
 
     futureGlobalStat = fetchStats();
+    futureCountryStat = fetchCountries();
     controller.addListener(onScroll);
   }
 
@@ -67,16 +74,10 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: EdgeInsets.only(top: 100),
             ),
-            // MyHeader(
-            //   image: "assets/icons/Drcorona.svg",
-            //   textTop: "All you need",
-            //   textBottom: "is stay at home.",
-            //   offset: offset,
-            // ),
             Container(
               margin: EdgeInsets.symmetric(horizontal: 20),
               padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-              height: 60,
+              height: 90,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -85,31 +86,43 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Color(0xFFE5E5E5),
                 ),
               ),
-              child: Row(
-                children: <Widget>[
-                  SvgPicture.asset("assets/icons/maps-and-flags.svg"),
-                  SizedBox(width: 20),
-                  Expanded(
-                    child: DropdownButton(
+              child: FutureBuilder<CountryStat>(
+                future: futureCountryStat,
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    String selectedValue;
+                    List<DropdownMenuItem> items = [];
+                    items.add(new DropdownMenuItem(
+                      child: new Text(
+                        'Global',
+                      ),
+                      value: 'Global',
+                    ));
+                    for (int i = 0; i < snapshot.data.countries.length; i++) {
+                      items.add(new DropdownMenuItem(
+                        child: new Text(
+                          snapshot.data.countries.elementAt(i).country,
+                        ),
+                        value: snapshot.data.countries.elementAt(i).country,
+                      ));
+                    }
+                    ;
+                    return new SearchableDropdown.single(
+                      items: items,
+                      value: selectedValue,
+                      hint: "Select one",
+                      searchHint: "Select one",
+                      onChanged: (value) {
+                        setState(() {
+                          selectedValue = value;
+                        });
+                      },
                       isExpanded: true,
-                      underline: SizedBox(),
-                      icon: SvgPicture.asset("assets/icons/dropdown.svg"),
-                      value: "Indonesia",
-                      items: [
-                        'Indonesia',
-                        'Bangladesh',
-                        'United States',
-                        'Japan'
-                      ].map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      onChanged: (value) {},
-                    ),
-                  ),
-                ],
+                    );
+                  } else if (snapshot.hasError) {
+                    return Text("${snapshot.error}");
+                  }
+                },
               ),
             ),
             SizedBox(height: 20),
@@ -119,26 +132,41 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: <Widget>[
                   Row(
                     children: <Widget>[
-                      RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: "Case Update\n",
-                              style: kTitleTextstyle,
-                            ),
-                            TextSpan(
-                              text: "Newest update March 28",
-                              style: TextStyle(
-                                color: kTextLightColor,
-                              ),
-                            ),
-                          ],
-                        ),
+                      Column(
+                        children: <Widget>[
+                          Text(
+                            "Case Update\n",
+                            style: kTitleTextstyle,
+                            textAlign: TextAlign.left
+                          ),
+                          FutureBuilder<CountryStat>(
+                            future: futureCountryStat,
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                var date =
+                                    snapshot.data.countries.elementAt(0).date;
+                                var dateSplit = date.split("T");
+                                return Text(
+                                  'Latest update: ' + dateSplit[0],
+                                  style: TextStyle(
+                                    color: kTextLightColor,
+                                  ),
+                                );
+                              } else if (snapshot.hasError) {
+                                return Text("${snapshot.error}");
+                              }
+                              return CircularProgressIndicator();
+                            },
+                          )
+                        ],
                       ),
                       Spacer(),
-                      GestureDetector(
-                        onTap: () {
-                          //initState();
+                      FlatButton(
+                        onPressed: () {
+                          setState(() {
+                            futureGlobalStat = fetchStats();
+                            log('reload');
+                          });
                         },
                         child: Text(
                           "Reload",
@@ -191,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         } else if (snapshot.hasError) {
                           return Text("${snapshot.error}");
                         }
-                        //return CircularProgressIndicator();
+                        return CircularProgressIndicator();
                       },
                     ),
                   ),
@@ -212,27 +240,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  Container(
-                    margin: EdgeInsets.only(top: 20),
-                    padding: EdgeInsets.all(20),
-                    height: 178,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          offset: Offset(0, 10),
-                          blurRadius: 30,
-                          color: kShadowColor,
-                        ),
-                      ],
-                    ),
-                    child: Image.asset(
-                      "assets/images/map.png",
-                      fit: BoxFit.contain,
-                    ),
-                  ),
+                  FutureBuilder<CountryStat>(
+                    future: fetchCountries(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        //CountryStat data = snapshot.data;
+                        //return new Text(snapshot.data.countries.elementAt(1).country);
+                        Expanded(
+                          child: _countryListView(snapshot.data.countries),
+                        );
+                      } else if (snapshot.hasError) {
+                        return Text("${snapshot.error}");
+                      }
+                      return CircularProgressIndicator();
+                    },
+                  )
                 ],
               ),
             ),
@@ -241,4 +263,22 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  ListView _countryListView(data) {
+    return ListView.builder(
+        itemCount: data.length,
+        itemBuilder: (context, index) {
+          return _tile(data.elementAt(index).country,
+              data.elementAt(index).totalConfirmed);
+        });
+  }
+
+  ListTile _tile(String country, String totalConfirmed) => ListTile(
+        title: Text(country,
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 20,
+            )),
+        subtitle: Text(totalConfirmed),
+      );
 }
