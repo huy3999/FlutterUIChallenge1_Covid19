@@ -1,14 +1,11 @@
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_ui_challenge_1/api/country_stat_api.dart';
 import 'package:flutter_ui_challenge_1/model/country_stat.dart';
 import 'package:flutter_ui_challenge_1/value.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_ui_challenge_1/widgets/counter.dart';
 import 'package:flutter_ui_challenge_1/model/global_stat.dart';
 import 'package:flutter_ui_challenge_1/api/global_stat_api.dart';
-import 'package:searchable_dropdown/searchable_dropdown.dart';
 
 void main() => runApp(MyApp());
 
@@ -40,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double offset = 0;
   Future<GlobalStat> futureGlobalStat;
   Future<CountryStat> futureCountryStat;
+  String dropdownValue = "Descending";
   static const IconData refresh = IconData(0xe5d5, fontFamily: 'MaterialIcons');
   @override
   void initState() {
@@ -71,59 +69,19 @@ class _HomeScreenState extends State<HomeScreen> {
         controller: controller,
         child: Column(
           children: <Widget>[
-            Padding(
-              padding: EdgeInsets.only(top: 100),
-            ),
             Container(
-              margin: EdgeInsets.symmetric(horizontal: 20),
-              padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-              height: 90,
+              height: 100,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25),
+                color: kPrimaryColor,
+                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(40),bottomRight: Radius.circular(40)),
                 border: Border.all(
                   color: Color(0xFFE5E5E5),
                 ),
               ),
-              child: FutureBuilder<CountryStat>(
-                future: futureCountryStat,
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    String selectedValue;
-                    List<DropdownMenuItem> items = [];
-                    items.add(new DropdownMenuItem(
-                      child: new Text(
-                        'Global',
-                      ),
-                      value: 'Global',
-                    ));
-                    for (int i = 0; i < snapshot.data.countries.length; i++) {
-                      items.add(new DropdownMenuItem(
-                        child: new Text(
-                          snapshot.data.countries.elementAt(i).country,
-                        ),
-                        value: snapshot.data.countries.elementAt(i).country,
-                      ));
-                    };
-                    return new SearchableDropdown.single(
-                      items: items,
-                      value: selectedValue,
-                      hint: "Select one",
-                      searchHint: "Select one",
-                      onChanged: (value) {
-                        setState(() {
-                          selectedValue = value;
-                        });
-                      },
-                      isExpanded: true,
-                    );
-                  } else if (snapshot.hasError) {
-                    return Text("${snapshot.error}");
-                  }
-                  return LinearProgressIndicator();
-                },
-              ),
+              child: Center(child: 
+                      Text("Covid-19", style: kHeadingTextStyle,) ,)
+              
             ),
             SizedBox(height: 20),
             Padding(
@@ -132,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: <Widget>[
                   ListTile(
                     title: Text(
-                      "Case Update",
+                      "Global Case Update",
                       style: kTitleTextstyle,
                     ),
                     subtitle: FutureBuilder<CountryStat>(
@@ -158,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPressed: () {
                         setState(() {
                           futureGlobalStat = fetchStats();
+                          futureCountryStat = fetchCountries();
                           log('reload');
                         });
                       },
@@ -215,12 +174,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       "Spread of Virus",
                       style: kTitleTextstyle,
                     ),
-                    trailing: Text(
-                      "See details",
-                      style: TextStyle(
+                    trailing: DropdownButton<String>(
+                      value: dropdownValue,
+                      icon: Icon(Icons.arrow_downward),
+                      iconSize: 24,
+                      elevation: 16,
+                      style: TextStyle(color: kPrimaryColor),
+                      underline: Container(
+                        height: 2,
                         color: kPrimaryColor,
-                        fontWeight: FontWeight.w600,
                       ),
+                      onChanged: (String newValue) {
+                        setState(() {
+                          dropdownValue = newValue;
+                        });
+                      },
+                      items: <String>['Descending', 'Ascending']
+                          .map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
                     ),
                     dense: true,
                   ),
@@ -230,7 +205,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       future: fetchCountries(),
                       builder: (context, snapshot) {
                         if (snapshot.hasData) {
-                          return _countryListView(snapshot.data.countries);
+                          if (dropdownValue != null) {
+                            if (dropdownValue == "Descending") {
+                              return _countryListView(
+                                  snapshot.data.countries, "des");
+                            } else {
+                              return _countryListView(
+                                  snapshot.data.countries, "as");
+                            }
+                          }
                         } else if (snapshot.hasError) {
                           return LinearProgressIndicator();
                         }
@@ -247,22 +230,36 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  ListView _countryListView(data) {
+  ListView _countryListView(data, sort) {
+    if (sort == "as") {
+      data.sort((Countries a, Countries b) =>
+          a.totalConfirmed.compareTo(b.totalConfirmed));
+    }
+    else{
+      data.sort((Countries a, Countries b) =>
+          b.totalConfirmed.compareTo(a.totalConfirmed));
+    }
     return ListView.builder(
         //shrinkWrap: true,
         itemCount: data.length,
         itemBuilder: (context, index) {
           return _tile(data.elementAt(index).country,
-              data.elementAt(index).totalConfirmed);
+              data.elementAt(index).totalConfirmed, data.elementAt(index).totalDeaths, data.elementAt(index).totalRecovered);
         });
   }
 
-  ListTile _tile(String country, int totalConfirmed) => ListTile(
+  ListTile _tile(String country, int totalConfirmed, int totalDeaths, int totalRecovered) => ListTile(
         title: Text(country,
             style: TextStyle(
               fontWeight: FontWeight.w500,
               fontSize: 20,
             )),
-        subtitle: Text(totalConfirmed.toString()),
+        subtitle: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly ,
+          children: <Widget>[
+            Text(totalConfirmed.toString(), style: TextStyle(color: kInfectedColor)),
+            Text(totalDeaths.toString(), style: TextStyle(color: kDeathColor)),
+            Text(totalRecovered.toString(), style: TextStyle(color: kRecovercolor))
+          ],),
       );
 }
